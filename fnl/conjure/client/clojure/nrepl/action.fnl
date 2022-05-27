@@ -436,7 +436,7 @@
     :all-fn "run-all"
     :ns-fn "run"
     :single-fn "run"
-    :default-call-suffix "{:kaocha/color? false}"
+    :default-call-suffix "{:kaocha/reporter [kaocha.report/documentation]}"
     :name-prefix "#'"
     :name-suffix ""}})
 
