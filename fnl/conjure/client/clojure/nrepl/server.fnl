@@ -29,63 +29,6 @@
     (fn [conn]
       (conn.send msg cb))))
 
-(comment
-  (send
-    {:op :init-debugger}
-    (fn [...]
-      (a.println ...)))
-
-  (send
-    {:op :debug-input
-     :input ":locals"
-     :key "0aa68a6d-0c9a-4eed-a811-8adb6003e339"}
-    (fn [...]
-      (a.println ...)))
-
-  ;; TODO We need to be able to parse this...
-  {:code "(defn add
-            \"Hello, World!
-            This is a function.\"
-            [a b]
-            #dbg (+ a b))"
-   :column 1
-   :coor [4 1]
-   :debug-value "1"
-   :file "/home/olical/repos/Olical/conjure/dev/clojure/src/dev/sandbox.cljc"
-   :id "05a0f24c-6575-40fc-a1a7-39937fd07fbb"
-   :input-type ["continue"
-                "locals"
-                "inspect"
-                "trace"
-                "here"
-                "continue-all"
-                "next"
-                "out"
-                "inject"
-                "stacktrace"
-                "inspect-prompt"
-                "quit"
-                "in"
-                "eval"]
-   :inspect "(\"Class\" \": \" (:value \"clojure.lang.PersistentArrayMap\" 0) (:newline) \"Contents: \" (:newline) \"  \" (:value \"a\" 1) \" = \" (:value \"1\" 2) (:newline) \"  \" (:value \"b\" 3) \" = \" (:value \"2\" 4) (:newline))"
-   :key "45dd9615-340a-49ad-8561-4d4739e15bea"
-   :line 11
-   :locals [["a" "1"] ["b" "2"]]
-   :original-id "64eb18b5-7319-4dac-8954-fc35c410206c"
-   :original-ns "dev.sandbox"
-   :prompt {}
-   :session "8d2503f0-bf45-44fa-b409-c34ab6eea13c"
-   :status ["need-debug-input"]}
-
-  (send
-    {:op :debug-middleware
-     :code "(+ 1 2)"
-     :file "dev/sandbox.cljc"
-     :ns "dev.sandbox"
-     :point [10 5]}
-    (fn [...]
-      (a.println ...))))
-
 (defn- display-conn-status [status]
   (with-conn-or-warn
     (fn [conn]
@@ -150,7 +93,8 @@
   (with-conn-or-warn
     (fn [_]
       (send
-        {:op :ls-sessions}
+        {:op :ls-sessions
+         :session :no-session}
         (fn [msg]
           (let [sessions (a.get msg :sessions)]
             (when (= :table (type sessions))
@@ -161,29 +105,42 @@
   (a.get
     {:clj :Clojure
      :cljs :ClojureScript
-     :cljr :ClojureCLR
-     :unknown :Unknown}
+     :cljr :ClojureCLR}
     st
-    (if (a.string? st)
-      (str.join [st "?"])
-      "https://conjure.fun/no-env")))
+    "Unknown https://conjure.fun/unknown-env"))
 
 (defn session-type [id cb]
-  (send
-    {:op :eval
-     :code (.. "#?("
-                   (str.join
-                     " "
-                     [":clj 'clj"
-                      ":cljs 'cljs"
-                      ":cljr 'cljr"
-                      ":default 'unknown"])
-                   ")")
-     :session id}
-    (nrepl.with-all-msgs-fn
-      (fn [msgs]
-        (let [st (a.some #(a.get $1 :value) msgs)]
-          (cb (when st (str.trim st))))))))
+  (let [state {:done? false}]
+
+    ;; Let's not wait forever just to check the type of a session.
+    ;; This prevents long running processes preventing session hopping.
+    ;; https://github.com/Olical/conjure/issues/366
+    (timer.defer
+      (fn []
+        (when (not state.done?)
+          (set state.done? true)
+          (cb :unknown)))
+
+      ;; Hard coding this because it shouldn't matter too much.
+      200)
+
+    (send
+      {:op :eval
+       :code (.. "#?("
+                     (str.join
+                       " "
+                       [":clj 'clj"
+                        ":cljs 'cljs"
+                        ":cljr 'cljr"
+                        ":default 'unknown"])
+                     ")")
+       :session id}
+      (nrepl.with-all-msgs-fn
+        (fn [msgs]
+          (let [st (a.some #(a.get $1 :value) msgs)]
+            (when (not state.done?)
+              (set state.done? true)
+              (cb (when st (str.trim st))))))))))
 
 (defn enrich-session-id [id cb]
   (session-type
