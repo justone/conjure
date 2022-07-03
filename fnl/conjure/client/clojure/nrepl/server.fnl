@@ -3,8 +3,11 @@
              uuid conjure.uuid
              timer conjure.timer
              log conjure.log
+             extract conjure.extract
+             client conjure.client
              str conjure.aniseed.string
              config conjure.config
+             debugger conjure.client.clojure.nrepl.debugger
              ui conjure.client.clojure.nrepl.ui
              state conjure.client.clojure.nrepl.state
              nrepl conjure.remote.nrepl}})
@@ -55,13 +58,17 @@
   (log.append [(str.join ["; Assumed session: " (session.str)])]
               {:break? true}))
 
+(defn un-comment [code]
+  (when code
+    (string.gsub code "^#_" "")))
+
 (defn eval [opts cb]
   (with-conn-or-warn
     (fn [_]
       (send
         {:op :eval
          :ns opts.context
-         :code opts.code
+         :code (un-comment opts.code)
          :file opts.file-path
          :line (a.get-in opts [:range :start 1])
          :column (-?> (a.get-in opts [:range :start 2]) (a.inc))
@@ -237,6 +244,14 @@
               (opts.else))))))
     opts))
 
+(defn handle-input-request [msg]
+  (send
+    {:op :stdin
+     :stdin (.. (or (extract.prompt "Input required: ")
+                    "")
+                "\n")
+     :session msg.session}))
+
 (defn connect [{: host : port : cb : port_file_path}]
   (when (state.get :conn)
     (disconnect))
@@ -274,9 +289,17 @@
            (when msg.status.namespace-not-found
              (log.append [(str.join ["; Namespace not found: " msg.ns])])))
 
+         :side-effect-callback
+         (fn [msg]
+           (when msg.status.need-input
+             (client.schedule handle-input-request msg))
+
+           (when msg.status.need-debug-input
+             (client.schedule debugger.handle-input-request msg)))
+
          :default-callback
-         (fn [result]
-           (ui.display-result result))})
+         (fn [msg]
+           (ui.display-result msg))})
 
       {:seen-ns {}
        :port_file_path port_file_path})))

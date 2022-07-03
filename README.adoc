@@ -18,6 +18,7 @@ The core features of Conjure are language agnostic (although it's targeted at Li
  * https://www.gnu.org/software/mit-scheme/[Scheme] (MIT by default) over stdio (https://github.com/Olical/conjure/wiki/Quick-start:-Scheme-(stdio)[quickstart])
  * https://www.gnu.org/software/guile/[Guile] over a socket file (https://github.com/Olical/conjure/wiki/Quick-start:-Guile-(socket)[quickstart])
  * https://lisp-lang.org/[Common Lisp] over https://www.cliki.net/SWANK[Swank] (https://github.com/Olical/conjure/wiki/Quick-start:-Common-Lisp-(Swank)[quickstart])
+ * https://julialang.org/[Julia] over stdio (https://github.com/Olical/conjure/wiki/Quick-start:-Julia-(stdio)[quickstart])
 
 You can learn more about the mappings and configuration inside Neovim with `:help conjure`. Each language client also has it's own specific help text under `:help conjure-client-{LANGUAGE}-{TRANSPORT}`, such as `:help conjure-client-clojure-nrepl`, which contains specific mappings and configuration for that client.
 
@@ -37,6 +38,7 @@ https://asciinema.org/a/325517[image:https://asciinema.org/a/325517.svg[asciicas
  * Use various mappings to execute the code you're interested in such as the current form, file, buffer or even form at a Neovim mark.
  * Every result is kept in a log buffer that you can access at any time.
  * Support for multiple asynchronous autocompletion frameworks, with https://github.com/Shougo/deoplete.nvim/[deoplete] built in (`<C-x><C-o>` also works!).
+ ** You can also use https://github.com/hrsh7th/nvim-compe[nvim-compe] with https://github.com/kkharji/compe-conjure[compe-conjure]. (which I actually recommend!)
 
 Conjure allows you to send the right part of your code off for evaluation, see the results, wrap the results in more code and evaluate that. It keeps a log of your actions and results so you don't have to remember them, that context is extremely helpful when you're down the rabbit hole of a bug hunt.
 
@@ -77,6 +79,16 @@ use 'Olical/conjure'
 Plug 'Olical/conjure'
 ----
 
+== Tree sitter support
+
+When you ask Conjure to evaluate the form under your cursor it has to understand the code enough to be able to find the boundaries and extract the right characters from the buffer. This used to be done using Neovim's built in `findpairpos`, syntax highlighting regexes and exhaustive searching of the buffer. This is error prone, gets slow as the buffer grows and doesn't work with non-Lisp languages which lack clear boundaries.
+
+I highly recommend you set up tree sitter inside your Neovim configuration and `:TSInstall [language]` every language you're interested in working with. You should then keep those tree sitter modules up to date as you upgrade Neovim since the API seems to change slightly over time.
+
+Tree sitter allows you to work with non-Lisp languages like Julia as well as get far more accurate, smart and performant evaluations in languages like Clojure. You can learn more and get everything set up using the https://github.com/nvim-treesitter/nvim-treesitter[nvim-treesitter] repository.
+
+It's technically optional since Conjure contains legacy fallback code, but I highly recommend tree sitter when using Conjure, it's how you get cool things like smart comment block evaluations in Clojure and form based evaluations in Julia and Lua.
+
 == Getting started
 
  * https://github.com/Olical/conjure/wiki/Quick-start:-Clojure[Clojure (JVM)]
@@ -97,14 +109,6 @@ All further documentation is found within link:doc/conjure.txt[`:help conjure`].
 Please do get in touch via https://conjure.fun/discord[Discord] or https://twitter.com/OliverCaldwell[Twitter] if you have any questions or issues.
 
 Broader documentation can be found in the https://github.com/Olical/conjure/wiki[Conjure wiki], there you'll find blog posts and guides that will help you get common workflows up and running. Contributions are encouraged!
-
-== Clients of tomorrow
-
-These are clients I intend to build eventually or encourage another community member to build and maintain on my behalf. Every language we add creates another bridge between communities, I would like Conjure to be common ground between all of our beloved esoteric REPL based languages.
-
- * http://lfe.io/[Lisp Flavoured Erlang]
- * Minimal https://clojure.org/[Clojure] sans nREPL+CIDER over https://oli.me.uk/clojure-socket-prepl-cookbook/[prepl] (or socket REPL)
- * Non-Lisp languages and beyond! (when Neovim has tree-sitter)
 
 == Behind the curtain
 

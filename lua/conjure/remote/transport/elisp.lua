@@ -20,6 +20,12 @@ local function err(...)
   return error(str.join({_2amodule_name_2a, ": ", ...}))
 end
 _2amodule_locals_2a["err"] = err
+local symbol_char_pat = "[a-zA-Z0-9_-]"
+_2amodule_locals_2a["symbol-char-pat"] = symbol_char_pat
+local number_char_pat = "[0-9.-]"
+_2amodule_locals_2a["number-char-pat"] = number_char_pat
+local whitespace_char_pat = "%s"
+_2amodule_locals_2a["whitespace-char-pat"] = whitespace_char_pat
 local function read_2a(cs, ctxs, result)
   if a["empty?"](cs) then
     return result
@@ -27,35 +33,60 @@ local function read_2a(cs, ctxs, result)
     local prev_cs = cs
     local c = a.first(cs)
     local cs0 = a.rest(cs)
-    local ctx = stack.peek(ctxs)
-    if ("escaped-string" == ctx) then
+    local _let_1_ = (stack.peek(ctxs) or {})
+    local ctx_name = _let_1_["name"]
+    local ctx_value = _let_1_["value"]
+    if (("list" == ctx_name) and (nil ~= result)) then
+      table.insert(ctx_value, result)
+      return read_2a(prev_cs, ctxs, nil)
+    elseif ("escaped-string" == ctx_name) then
       return read_2a(cs0, stack.pop(ctxs), (result .. c))
-    elseif ("string" == ctx) then
+    elseif ("string" == ctx_name) then
       if ("\"" == c) then
         return read_2a(cs0, stack.pop(ctxs), result)
       elseif ("\\" == c) then
-        return read_2a(cs0, stack.push(ctxs, "escaped-string"), result)
+        return read_2a(cs0, stack.push(ctxs, {name = "escaped-string"}), result)
       else
         return read_2a(cs0, ctxs, (result .. c))
       end
-    elseif ("symbol" == ctx) then
-      if string.find(c, "[a-zA-Z0-9_-]") then
+    elseif ("symbol" == ctx_name) then
+      if string.find(c, symbol_char_pat) then
         return read_2a(cs0, ctxs, (result .. c))
       else
         return read_2a(prev_cs, stack.pop(ctxs), result)
       end
-    elseif a["nil?"](ctx) then
+    elseif ("number" == ctx_name) then
+      if string.find(c, number_char_pat) then
+        local function _4_()
+          local result0 = (result .. c)
+          if a["empty?"](cs0) then
+            return tonumber(result0)
+          else
+            return result0
+          end
+        end
+        return read_2a(cs0, ctxs, _4_())
+      else
+        return read_2a(prev_cs, stack.pop(ctxs), tonumber(result))
+      end
+    elseif (("list" == ctx_name) or a["nil?"](ctx_name)) then
       if ("\"" == c) then
-        return read_2a(cs0, stack.push(ctxs, "string"), "")
+        return read_2a(cs0, stack.push(ctxs, {name = "string"}), "")
       elseif (":" == c) then
-        return read_2a(cs0, stack.push(ctxs, "symbol"), "")
-      elseif string.find(c, "%s") then
+        return read_2a(cs0, stack.push(ctxs, {name = "symbol"}), "")
+      elseif ("(" == c) then
+        return read_2a(cs0, stack.push(ctxs, {name = "list", value = {}}), nil)
+      elseif (")" == c) then
+        return read_2a(cs0, stack.pop(ctxs), ctx_value)
+      elseif string.find(c, whitespace_char_pat) then
         return read_2a(cs0, ctxs, result)
+      elseif string.find(c, number_char_pat) then
+        return read_2a(prev_cs, stack.push(ctxs, {name = "number"}), "")
       else
         return err("Unknown character: ", c)
       end
     else
-      return err("Unknown `ctx`: ", ctx)
+      return err("Unknown `ctx`: ", ctx_name)
     end
   end
 end
