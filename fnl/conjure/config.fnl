@@ -51,8 +51,9 @@
   {:debug false
    :relative_file_root nil
    :path_subs nil
+   :client_on_load true
 
-   :filetypes [:clojure :fennel :janet :hy :julia :racket :scheme :lua :lisp]
+   :filetypes [:clojure :fennel :janet :hy :julia :racket :scheme :lua :lisp :rust]
    :filetype {:clojure :conjure.client.clojure.nrepl
               :fennel :conjure.client.fennel.aniseed
               :janet :conjure.client.janet.netrepl
@@ -61,7 +62,8 @@
               :racket :conjure.client.racket.stdio
               :scheme :conjure.client.scheme.stdio
               :lua :conjure.client.lua.neovim
-              :lisp :conjure.client.common-lisp.swank}
+              :lisp :conjure.client.common-lisp.swank
+              :rust :conjure.client.rust.evcxr}
    :filetype_suffixes {:racket [:rkt]
                        :scheme [:scm]}
 
